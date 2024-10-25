@@ -107,7 +107,7 @@ class Player:
         self.sprite = "stand_right"
         self.frame = 0
         self.animation_speed = 4
-
+        self.direction = True #True == right, False == left
     def animate(self, img):
         self.frame += self.animation_speed * dt
         current_frame = img[int(self.frame) % len(img)]
@@ -140,21 +140,11 @@ class Player:
                 self.velocity.y = -1000
                 self.jumping = True
                 self.delay = .5
-                if self.sprite == "stand_right" or self.sprite == "walk_right1" or self.sprite == "walk_right2":
-                    self.sprite = "jump_right"
-                elif self.sprite == "stand_left" or self.sprite == "walk_left1" or self.sprite == "walk_left2":
-                    self.sprite = "jump_left"
+                
         if self.jumping:
             self.velocity.y += self.acceleration_rate * 2.5 * dt
-            if self.velocity.x > 0:
-                self.sprite = "jump_right"
-            elif self.velocity.x < 0:
-                self.sprite = "jump_left"
-        else:
-            if self.velocity.x > 0:
-                self.sprite = "stand_right"
-            elif self.velocity.x < 0:
-                self.sprite = "stand_left"
+            
+        
             #print(self.velocity.y)
         colliding = False
         xcollide = False
@@ -175,22 +165,14 @@ class Player:
                     self.position.y = level_segment.worldposition.y - self.h
                     #print(f' collide pos {level_segment.worldposition.y}')
                     #print('collide')
-                    if self.sprite == "jump_right":
-                        self.sprite = "stand_right"
-                    elif self.sprite == "jump_left":
-                        self.sprite = "stand_left"
+                    
                     colliding = True
 
                     if self.delay <= 0:
                         self.jumping = False
                 #if self.velocity.x > 0:
                 #    self.position.x = level_segment.position.x + self.w
-            else:
-                if self.jumping:
-                    if self.sprite == "stand_right" or self.sprite == "walk_right1" or self.sprite == "walk_right2":
-                        self.sprite = "jump_right"
-                    elif self.sprite == "stand_left" or self.sprite == "walk_left1" or self.sprite == "walk_left2":
-                        self.sprite = "jump_left"
+            
 
         if not colliding:
             #print(colliding)
@@ -206,24 +188,24 @@ class Player:
         if xcollide:
             self.acceleration = 0
 
-            if self.velocity.x >= 0:
+            if self.velocity.x > 0:
                 self.velocity.x = pygame.math.clamp(self.velocity.x, 0, -self.max_velocity)
             elif self.velocity.x < 0:
                 self.velocity.x = pygame.math.clamp(self.velocity.x, 0, self.max_velocity)
+            else:
+                self.velocity.x = 0
 
         else:
             if pressed[self.left]:
                 self.acceleration += self.acceleration_rate * dt
                 self.acceleration = pygame.math.clamp(self.acceleration, 0, self.max_acceleration)
                 self.velocity.x = -pygame.math.lerp(0, self.max_velocity, self.acceleration / self.max_acceleration)
-                if not self.jumping:
-                    self.animate(["walk_left1", "walk_left2"])
+                self.direction = False
             elif pressed[self.right]:
                 self.acceleration += self.acceleration_rate * dt
                 self.acceleration = pygame.math.clamp(self.acceleration, 0, self.max_acceleration)
                 self.velocity.x = pygame.math.lerp(0, self.max_velocity, self.acceleration / self.max_acceleration)
-                if not self.jumping:
-                    self.animate(["walk_right1", "walk_right2"])
+                self.direction = True
             else:
                 #if not self.jumping:
                 #    if self.velocity.x > 0:
@@ -246,6 +228,23 @@ class Player:
         self.position += self.velocity.rotate(-self.angle) * dt
 
         self.angle += degrees(angular_velocity) * dt
+
+        
+        if self.jumping:
+            if self.direction:
+                self.sprite = "jump_right"
+            else:
+                self.sprite = "jump_left"
+        else:    
+            if self.velocity.x > 0.4: 
+                self.animate(["walk_right1", "walk_right2"])
+            elif self.velocity.x < -0.4:  
+                self.animate(["walk_left1", "walk_left2"])
+            else:
+                if self.direction:
+                    self.sprite = "stand_right"
+                else:
+                    self.sprite = "stand_left"   
 
 
 
