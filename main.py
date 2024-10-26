@@ -1,5 +1,6 @@
 import pygame
 from pygame.math import Vector2
+import math
 from math import sin, radians, degrees, copysign
 import os
 from os import walk
@@ -10,6 +11,8 @@ RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 GREEN = (0, 255, 0)
 FUSCIA = (0, 255, 255)
+SKY = (137, 217, 239)
+BROWN = (69, 30, 10)
 #PLAYER_HEIGHT = 10
  
 # initialize pygame
@@ -44,21 +47,30 @@ for name in filenames:
     imagename = os.path.splitext(name)[0] 
     images[imagename] = pygame.image.load(os.path.join(path, name)).convert_alpha()
 
+path = 'sprites'
+filenames = [f for f in os.listdir(path) if f.endswith('.png')]
+bg_images = {}
+for name in filenames:
+    imagename = os.path.splitext(name)[0]
+    bg_images[imagename] = pygame.image.load(os.path.join(path, name)).convert_alpha()
+
 
 
 
 class Level:
-    def __init__(self, x, y, width, height):
+    def __init__(self, x, y, width, height, img):
         self.position = Vector2(x, y)
         self.worldposition = Vector2(0, 0)
         self.w = width
         self.h = height
         self.rect = pygame.Rect(self.position.x, self.position.y, self.w, self.h)
+        self.img = img
 
     def update(self):
         self.worldposition.x = world_offset.x + self.position.x
         self.worldposition.y = world_offset.y + self.position.y
-        self.rect = pygame.draw.rect(screen, GREEN, pygame.Rect(self.worldposition.x, self.worldposition.y, self.w, self.h), 0)
+        self.rect = pygame.Rect(self.worldposition.x, self.worldposition.y, self.w, self.h)
+        screen.blit(self.img, (self.worldposition.x, self.worldposition.y))
         '''
         if self.position.x <= p1.position.x <= self.position.x + self.w and self.position.y <= p1.position.y <= self.position.y + self.h:
             print("on platform")
@@ -67,11 +79,17 @@ class Level:
         '''
 
 levels = []
-l = Level(0, 300, 640, 10)
+
+
+l = Level(0, 300, 32, 32, bg_images['edgeleft'])
 levels.append(l)
-l = Level(250, 250, 100, 10)
+for i in range(30):
+    l = Level(32 * i, 300, 32, 32, bg_images['ground'])
+    levels.append(l)
+
+l = Level(250, 268, 32, 32, bg_images['ground'])
 levels.append(l)
-l = Level(400, 250, 100, 10)
+l = Level(550, 268, 32, 32, bg_images['ground'])
 levels.append(l)
 
 
@@ -108,6 +126,7 @@ class Player:
         self.frame = 0
         self.animation_speed = 4
         self.direction = True #True == right, False == left
+        self.double_jump = 1
     def animate(self, img):
         self.frame += self.animation_speed * dt
         current_frame = img[int(self.frame) % len(img)]
@@ -140,7 +159,10 @@ class Player:
                 self.velocity.y = -1000
                 self.jumping = True
                 self.delay = .5
-                #add double jump
+            else:
+                if self.double_jump > 0 and self.delay <= 0:
+                    self.velocity.y = -1000
+                    self.double_jump -= 1
                 
         if self.jumping:
             if self.velocity.y < 0:
@@ -156,6 +178,7 @@ class Player:
             if xrect.colliderect(level_segment.rect):
                 if abs(self.velocity.x) > 0:
                     xcollide = True
+                    print(f' 1 {xcollide} {self.direction}')
 
                 '''   
                 if self.velocity.x > 0:
@@ -171,6 +194,7 @@ class Player:
                     #print('collide')
                     
                     colliding = True
+                    self.double_jump = 1
 
                     if self.delay <= 0:
                         self.jumping = False
@@ -201,19 +225,21 @@ class Player:
 
         else:
             if pressed[self.left]:
-                if self.velocity.x > 0:
-                    self.acceleration = 0
-                self.acceleration += self.acceleration_rate * dt
-                self.acceleration = pygame.math.clamp(self.acceleration, 0, self.max_acceleration)
-                self.velocity.x = -pygame.math.lerp(0, self.max_velocity, self.acceleration / self.max_acceleration)
-                self.direction = False
+                if not xcollide:
+                    if self.velocity.x > 0:
+                        self.acceleration = 0
+                    self.acceleration += self.acceleration_rate * dt
+                    self.acceleration = pygame.math.clamp(self.acceleration, 0, self.max_acceleration)
+                    self.velocity.x = -pygame.math.lerp(0, self.max_velocity, self.acceleration / self.max_acceleration)
+                    self.direction = False
             elif pressed[self.right]:
-                if self.velocity.x < 0:
-                    self.acceleration = 0
-                self.acceleration += self.acceleration_rate * dt
-                self.acceleration = pygame.math.clamp(self.acceleration, 0, self.max_acceleration)
-                self.velocity.x = pygame.math.lerp(0, self.max_velocity, self.acceleration / self.max_acceleration)
-                self.direction = True
+                if not xcollide:
+                    if self.velocity.x < 0:
+                        self.acceleration = 0
+                    self.acceleration += self.acceleration_rate * dt
+                    self.acceleration = pygame.math.clamp(self.acceleration, 0, self.max_acceleration)
+                    self.velocity.x = pygame.math.lerp(0, self.max_velocity, self.acceleration / self.max_acceleration)
+                    self.direction = True
             else:
                 #if not self.jumping:
                 #    if self.velocity.x > 0:
@@ -244,18 +270,17 @@ class Player:
             else:
                 self.sprite = "jump_left"
         else:    
-            if self.velocity.x > 0.4: 
+            if self.velocity.x > 1:
                 self.animate(["walk_right1", "walk_right2"])
-            elif self.velocity.x < -0.4:  
+            elif self.velocity.x < -1:
                 self.animate(["walk_left1", "walk_left2"])
             else:
                 if self.direction:
                     self.sprite = "stand_right"
                 else:
-                    self.sprite = "stand_left"   
+                    self.sprite = "stand_left"
 
-
-
+        #print(f' 2 {xcollide} {self.direction}')
         #pygame.draw.rect(screen, self.colour, pygame.Rect(self.position.x, self.position.y, self.w, self.h), 0)
         screen.blit(images[self.sprite], (self.position.x, self.position.y))
 
@@ -264,9 +289,11 @@ p1 = Player(360,100, RED, pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RI
 #p2 = Player(240, 240, BLUE, pygame.K_w, pygame.K_s, pygame.K_a, pygame.K_d)
 
 
+bg = pygame.transform.scale(bg_images['clouds'], (320, 240))
 
-
- 
+scroll = 0
+scroll_speed = 2
+tiles = math.ceil(screen_size[0]/bg.get_width()) + 1
 running = True
 while running:
     dt = clock.get_time() / 1000
@@ -274,16 +301,29 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
+
     
      
     #clear the screen
-    screen.fill(BLACK)
+    screen.fill(SKY)
+
+    i = 0
+    while (i < tiles):
+        screen.blit(bg, (bg.get_width() * i + scroll, 0))
+        i += 1
+    # FRAME FOR SCROLLING
+    scroll -= 2
+
+    # RESET THE SCROLL FRAME
+    if abs(scroll) > bg.get_width():
+        scroll = 0
 
     screen_rect_x = screen_size[0] / 4
     screen_rect_y = screen_size[1] / 4
-    screen_rect_width = screen_size[0] / 2
+    screen_rect_width = screen_size[0] / 3
     screen_rect_height = screen_size[1] / 2
-    pygame.draw.rect(screen, RED, pygame.Rect(screen_rect_x, screen_rect_y, screen_rect_width, screen_rect_height), 1)
+    #pygame.draw.rect(screen, RED, pygame.Rect(screen_rect_x, screen_rect_y, screen_rect_width, screen_rect_height), 1)
+    pygame.draw.rect(screen, BROWN, pygame.Rect(0, 332, screen_size[0], 300), 0)
      
     # draw to the screen
     # YOUR CODE HERE
@@ -306,26 +346,30 @@ while running:
         level_segment.update()
 
 
+    scroll_speed = pygame.math.lerp(1, 3, p1.position.x / screen_size[0] / 4)
+    print(f' ss {scroll_speed}, pos {p1.position.x}, max {screen_size[0] / 4}, / {p1.position.x / screen_size[0] / 4}')
     if p1.position.x <= screen_rect_x:
         #print("outside of rect left")
-        world_offset.x += 1
-        p1.position.x += 1
+        world_offset.x += scroll_speed
+        p1.position.x += scroll_speed
+        scroll += 1
         #p2.position.x += 1
     elif p1.position.x + 64 >= screen_rect_x + screen_rect_width:
         #print("outside of rect right")
-        world_offset.x -= 1
-        p1.position.x -= 1
+        world_offset.x -= scroll_speed
+        p1.position.x -= scroll_speed
+        scroll -= 1
         #p2.position.x -= 1
     elif p1.position.y <= screen_rect_y:
         #print("outside of rect up")
-        world_offset.y += 1
-        p1.position.y += 1
+        world_offset.y += scroll_speed
+        p1.position.y += scroll_speed
         #p2.position.y += 1
     elif p1.position.y >= screen_rect_y + screen_rect_height:
         #print("outside of rect down")
-        world_offset.y -= 1
+        world_offset.y -= scroll_speed
         #p2.position.y -= 1
-        p1.position.y -= 1
+        p1.position.y -= scroll_speed
     #print(f'x = {p1.position.x} - {screen_rect_x}, y = {p1.position.y} - {screen_rect_y}')
 
     '''
