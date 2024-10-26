@@ -21,7 +21,7 @@ screen_size = (640, 480)
 world_offset = Vector2(0,0)
  
 # create a window
-scale = 1
+scale = 2
 screen_scale = pygame.display.set_mode((screen_size[0] * scale, screen_size[1] * scale), 0, 32)
 screen = pygame.Surface(screen_size)
 #screen = pygame.display.set_mode(screen_size)
@@ -140,9 +140,13 @@ class Player:
                 self.velocity.y = -1000
                 self.jumping = True
                 self.delay = .5
+                #add double jump
                 
         if self.jumping:
-            self.velocity.y += self.acceleration_rate * 2.5 * dt
+            if self.velocity.y < 0:
+                self.velocity.y += self.acceleration_rate * 7 * dt
+            else:
+                self.velocity.y += self.acceleration_rate * 10 * dt
             
         
             #print(self.velocity.y)
@@ -197,11 +201,15 @@ class Player:
 
         else:
             if pressed[self.left]:
+                if self.velocity.x > 0:
+                    self.acceleration = 0
                 self.acceleration += self.acceleration_rate * dt
                 self.acceleration = pygame.math.clamp(self.acceleration, 0, self.max_acceleration)
                 self.velocity.x = -pygame.math.lerp(0, self.max_velocity, self.acceleration / self.max_acceleration)
                 self.direction = False
             elif pressed[self.right]:
+                if self.velocity.x < 0:
+                    self.acceleration = 0
                 self.acceleration += self.acceleration_rate * dt
                 self.acceleration = pygame.math.clamp(self.acceleration, 0, self.max_acceleration)
                 self.velocity.x = pygame.math.lerp(0, self.max_velocity, self.acceleration / self.max_acceleration)
