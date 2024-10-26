@@ -1,9 +1,9 @@
 import pygame
 from pygame.math import Vector2
 import math
-from math import sin, radians, degrees, copysign
+from math import sin, radians, degrees
 import os
-from os import walk
+
  
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -27,7 +27,6 @@ world_offset = Vector2(0,0)
 scale = 2
 screen_scale = pygame.display.set_mode((screen_size[0] * scale, screen_size[1] * scale), 0, 32)
 screen = pygame.Surface(screen_size)
-#screen = pygame.display.set_mode(screen_size)
 pygame.display.set_caption("pygame Test")
  
 # clock is used to set a max fps
@@ -54,9 +53,6 @@ for name in filenames:
     imagename = os.path.splitext(name)[0]
     bg_images[imagename] = pygame.image.load(os.path.join(path, name)).convert_alpha()
 
-
-
-
 class Level:
     def __init__(self, x, y, width, height, img):
         self.position = Vector2(x, y)
@@ -71,16 +67,9 @@ class Level:
         self.worldposition.y = world_offset.y + self.position.y
         self.rect = pygame.Rect(self.worldposition.x, self.worldposition.y, self.w, self.h)
         screen.blit(self.img, (self.worldposition.x, self.worldposition.y))
-        '''
-        if self.position.x <= p1.position.x <= self.position.x + self.w and self.position.y <= p1.position.y <= self.position.y + self.h:
-            print("on platform")
-            p1.position.y = self.position.y - PLAYER_HEIGHT
-            p1.jumping = False
-        '''
+
 
 levels = []
-
-
 l = Level(0, 300, 32, 32, bg_images['edgeleft'])
 levels.append(l)
 for i in range(30):
@@ -91,7 +80,6 @@ l = Level(250, 268, 32, 32, bg_images['ground'])
 levels.append(l)
 l = Level(550, 268, 32, 32, bg_images['ground'])
 levels.append(l)
-
 
 def timer(countdown, amount, dt):
     countdown -= amount * dt
@@ -118,7 +106,6 @@ class Player:
         self.right = right
         self.acceleration_rate = 25
         self.jumping = False
-        #self.rect = None
         self.delay = 0.0
         self.w = 64
         self.h = 64
@@ -180,12 +167,7 @@ class Player:
                     xcollide = True
                     print(f' 1 {xcollide} {self.direction}')
 
-                '''   
-                if self.velocity.x > 0:
-                    self.position.x = level_segment.worldposition.x - self.w
-                elif self.velocity.x < 0:
-                    self.position.x = level_segment.worldposition.x
-                '''
+
 
             if rect.colliderect(level_segment.rect):
                 if self.velocity.y > 0:
@@ -206,13 +188,7 @@ class Player:
             #print(colliding)
             self.jumping = True
 
-        '''
-        elif pressed[self.down]:
-            pass
-            #self.velocity.y = speed
-        else:
-            self.velocity.y = 0
-        '''
+
         if xcollide:
             self.acceleration = 0
 
@@ -372,110 +348,7 @@ while running:
         p1.position.y -= scroll_speed
     #print(f'x = {p1.position.x} - {screen_rect_x}, y = {p1.position.y} - {screen_rect_y}')
 
-    '''
-    if pressed[pygame.K_UP]:
-        p1.angle = 90
-        if p1.acceleration < 0:
-            p1.acceleration = 0
-        if p1.velocity.x < 0:
-            p1.acceleration = p1.brake_deceleration
-        else:
-            p1.acceleration += acceleration_rate * dt
-    elif pressed[pygame.K_DOWN]:
-        p1.angle = 270
-        if p1.acceleration < 0:
-            p1.acceleration = 0
-        if p1.velocity.x < 0:
-            p1.acceleration = p1.brake_deceleration
-        else:
-            p1.acceleration += acceleration_rate * dt
-    elif pressed[pygame.K_LEFT]:
-        p1.angle = 180
-        if p1.acceleration < 0:
-            p1.acceleration = 0
-        if p1.velocity.x < 0:
-            p1.acceleration = p1.brake_deceleration
-        else:
-            p1.acceleration += acceleration_rate * dt
-    elif pressed[pygame.K_RIGHT]:
-        p1.angle = 0
-        if p1.acceleration < 0:
-            p1.acceleration = 0
-        if p1.velocity.x < 0:
-            p1.acceleration = p1.brake_deceleration
-        else:
-            p1.acceleration += acceleration_rate * dt
-    print(pressed[pygame.KEYDOWN])
-    if p1.velocity.x > 0:
-        p1.velocity.x -= p1.brake_deceleration * dt
-    else:
-        p1.velocity.x = 0
-    #print(p1.velocity.x)
-    '''
-    '''
-    elif pressed[pygame.K_DOWN]:
-        if p1.acceleration > 0:
-            p1.acceleration = 0
-        if p1.velocity.x > 0:
-            p1.acceleration = -p1.brake_deceleration
-        else:
-            p1.acceleration -= 2 * dt
-    else:
-        if abs(p1.velocity.x) > dt * p1.free_deceleration:
-            p1.acceleration = -copysign(p1.free_deceleration, p1.velocity.x)
-        else:
-            if dt != 0:
-                p1.acceleration = 0
-    if pressed[pygame.K_RIGHT]:
-        if p1.velocity.x > 0:
-            #frame -= 1
-            p1.angle -= turn_rate * dt
-        else:
-            p1.angle += turn_rate * dt
-    elif pressed[pygame.K_LEFT]:
-        if p1.velocity.x > 0:
-            p1.angle += turn_rate * dt
-        else:
-            p1.angle -= turn_rate * dt
-    
 
-    if pressed[pygame.K_w]:
-        if p2.acceleration < 0:
-            p2.acceleration = 0
-        if p2.velocity.y < 0:
-            p2.acceleration = p2.brake_deceleration
-        else:
-            p2.acceleration += acceleration_rate * dt
-        p2.velocity.y -= p2.acceleration * dt * 1
-        p2dir = 'up'
-    elif pressed[pygame.K_s]:
-        if p2.acceleration < 0:
-            p2.acceleration = 0
-        if p2.velocity.y > 0:
-            p2.acceleration = p2.brake_deceleration
-        else:
-            p2.acceleration += acceleration_rate * dt
-        p2.velocity.y += p2.acceleration * dt * 1
-        p2dir = 'down'
-    elif pressed[pygame.K_d]:
-        if p2.acceleration < 0:
-            p2.acceleration = 0
-        if p2.velocity.x < 0:
-            p2.acceleration = p2.brake_deceleration
-        else:
-            p2.acceleration += acceleration_rate * dt
-        p2.velocity.x += p2.acceleration * dt * 1
-        p2dir = 'right'
-    elif pressed[pygame.K_a]:
-        if p2.acceleration < 0:
-            p2.acceleration = 0
-        if p2.velocity.y > 0:
-            p2.acceleration = p2.brake_deceleration
-        else:
-            p2.acceleration += acceleration_rate * dt
-        p2.velocity.x -= p2.acceleration * dt * 1
-        p2dir = 'left'
-    '''
     #print(f'velx {p2.velocity.x}, vely {p2.velocity.y}, accel {p2.acceleration}, dir {p2dir}')
 
 
