@@ -3,8 +3,11 @@ from pygame.math import Vector2
 import math
 from math import sin, radians, degrees
 import os
+from os.path import join
+from os import walk
+from pytmx.util_pygame import load_pygame
 
- 
+# Constants -------------------------------------------------
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
@@ -13,6 +16,17 @@ GREEN = (0, 255, 0)
 FUSCIA = (0, 255, 255)
 SKY = (137, 217, 239)
 BROWN = (69, 30, 10)
+
+WORLD_LAYERS = {
+    'distance': 0,
+    'bg': 1,
+    'shadow': 2,
+    'main': 3,
+    'fg': 4
+}
+
+TILE_SIZE = 64
+ANIMATION_SPEED = 6
 #PLAYER_HEIGHT = 10
  
 # initialize pygame
@@ -31,61 +45,22 @@ pygame.display.set_caption("pygame Test")
  
 # clock is used to set a max fps
 clock = pygame.time.Clock()
+
+# groups ---------------------------------------------------------------
+all_sprites = AllSprites()
+collision_sprites = pygame.sprite.Group()
+character_sprites = pygame.sprite.Group()
+transition_sprites = pygame.sprite.Group()
+monster_sprites = pygame.sprite.Group()
+item_sprites = pygame.sprite.Group()
  
 # create a demo surface, and draw a red line diagonally across it
-surface_size = (25, 45)
-test_surface = pygame.Surface(surface_size)
-test_surface.fill(WHITE)
+#surface_size = (25, 45)
+#test_surface = pygame.Surface(surface_size)
+#test_surface.fill(WHITE)
 #pygame.draw.aaline(test_surface, RED, (0, surface_size[1]), (surface_size[0], 0))
 
-# import sprites
-path = 'sprites/dog/'
-filenames = [f for f in os.listdir(path) if f.endswith('.png')]
-images = {}
-for name in filenames:
-    imagename = os.path.splitext(name)[0] 
-    images[imagename] = pygame.image.load(os.path.join(path, name)).convert_alpha()
-
-path = 'sprites'
-filenames = [f for f in os.listdir(path) if f.endswith('.png')]
-bg_images = {}
-for name in filenames:
-    imagename = os.path.splitext(name)[0]
-    bg_images[imagename] = pygame.image.load(os.path.join(path, name)).convert_alpha()
-
-class Level:
-    def __init__(self, x, y, width, height, img):
-        self.position = Vector2(x, y)
-        self.worldposition = Vector2(0, 0)
-        self.w = width
-        self.h = height
-        self.rect = pygame.Rect(self.position.x, self.position.y, self.w, self.h)
-        self.img = img
-
-    def update(self):
-        self.worldposition.x = world_offset.x + self.position.x
-        self.worldposition.y = world_offset.y + self.position.y
-        self.rect = pygame.Rect(self.worldposition.x, self.worldposition.y, self.w, self.h)
-        screen.blit(self.img, (self.worldposition.x, self.worldposition.y))
-
-
-levels = []
-l = Level(0, 300, 32, 32, bg_images['edgeleft'])
-levels.append(l)
-for i in range(30):
-    l = Level(32 * i, 300, 32, 32, bg_images['ground'])
-    levels.append(l)
-
-l = Level(250, 268, 32, 32, bg_images['ground'])
-levels.append(l)
-l = Level(550, 268, 32, 32, bg_images['ground'])
-levels.append(l)
-
-def timer(countdown, amount, dt):
-    countdown -= amount * dt
-    return countdown
-
-
+# player -----------------------------------------------------------------------------
 class Player:
     def __init__(self, x, y, colour, up, down, left, right, angle=0.0, length=4, max_steering=180, max_acceleration=20):
         self.position = Vector2(x, y)
@@ -260,9 +235,189 @@ class Player:
         #pygame.draw.rect(screen, self.colour, pygame.Rect(self.position.x, self.position.y, self.w, self.h), 0)
         screen.blit(images[self.sprite], (self.position.x, self.position.y))
 
-
 p1 = Player(360,100, RED, pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT)
 #p2 = Player(240, 240, BLUE, pygame.K_w, pygame.K_s, pygame.K_a, pygame.K_d)
+
+
+
+# import sprites --------------------------------------------------------------------
+path = 'sprites/dog/'
+filenames = [f for f in os.listdir(path) if f.endswith('.png')]
+images = {}
+for name in filenames:
+    imagename = os.path.splitext(name)[0] 
+    images[imagename] = pygame.image.load(os.path.join(path, name)).convert_alpha()
+
+path = 'sprites'
+filenames = [f for f in os.listdir(path) if f.endswith('.png')]
+bg_images = {}
+for name in filenames:
+    imagename = os.path.splitext(name)[0]
+    bg_images[imagename] = pygame.image.load(os.path.join(path, name)).convert_alpha()
+
+# Tiled importer -------------------------------------------------------------------
+def tmx_importer(*path):
+	tmx_dict = {}
+	for folder_path, sub_folders, file_names in walk(join(*path)):
+		for file in file_names:
+			tmx_dict[file.split('.')[0]] = load_pygame(join(folder_path, file))
+	return tmx_dict
+
+tmx_maps = tmx_importer('data', 'maps')
+
+# sprites ------------------------------------------------------------
+
+class Sprite(pygame.sprite.Sprite):
+	def __init__(self, pos, surf, groups, z = WORLD_LAYERS['main']):
+		super().__init__(groups)
+		self.image = surf
+		self.rect = self.image.get_frect(topleft = pos)
+		self.z = z
+		self.y_sort = self.rect.centery
+		self.hitbox = self.rect.copy()
+
+class BorderSprite(Sprite):
+	def __init__(self, pos, surf, groups):
+		super().__init__(pos, surf, groups)
+		self.hitbox = self.rect.copy()
+
+class TransitionSprite(Sprite):
+	def __init__(self, pos, size, target, groups):
+		surf = pygame.Surface(size)
+		super().__init__(pos, surf, groups)
+		self.target = target
+
+class CollidableSprite(Sprite):
+	def __init__(self, pos, surf, groups):
+		super().__init__(pos, surf, groups)
+		self.hitbox = self.rect.inflate(0, -self.rect.height * 0.6)
+
+class AnimatedSprite(Sprite):
+	def __init__(self, pos, frames, groups, z = WORLD_LAYERS['main']):
+		self.frame_index, self.frames = 0, frames
+		super().__init__(pos, frames[self.frame_index], groups, z)
+
+	def animate(self, dt):
+		self.frame_index += ANIMATION_SPEED * dt
+		self.image = self.frames[int(self.frame_index % len(self.frames))]
+
+	def update(self, dt):
+		self.animate(dt)
+          
+# tmx setup -------------------------------------------------------
+
+def setup(tmx_map, player_start_pos):
+        # clear the map
+        for group in (self.all_sprites, self.collision_sprites, self.transition_sprites, self.character_sprites):
+            group.empty()
+        maptest = str(tmx_map)
+        #print(f' Type: {type(maptest)}')
+        maptest = maptest.replace('<TiledMap: "data\\maps\\', "")
+        maptest = maptest.replace('.tmx">', "")
+        # print(f' level: {maptest}') #map name output --------------------------------------
+
+        # terrain
+
+        for layer in ['Terrain', 'Terrain Top']:
+            for x, y, surf in tmx_map.get_layer_by_name(layer).tiles():
+                Sprite((x * TILE_SIZE, y * TILE_SIZE), surf, self.all_sprites, WORLD_LAYERS['bg'])
+
+        # water
+        for obj in tmx_map.get_layer_by_name('Water'):
+            for x in range(int(obj.x), int(obj.x + obj.width), TILE_SIZE):
+                for y in range(int(obj.y), int(obj.y + obj.height), TILE_SIZE):
+                    AnimatedSprite((x, y), self.overworld_frames['water'], self.all_sprites, WORLD_LAYERS['water'])
+
+        # animated signs etx
+        #for obj in tmx_map.get_layer_by_name('Animated'):
+        #    for x in range(int(obj.x), int(obj.x + obj.width), TILE_SIZE):
+        #        for y in range(int(obj.y), int(obj.y + obj.height), TILE_SIZE):
+        #            AnimatedSprite((x, y), self.overworld_frames['animated'], self.all_sprites, WORLD_LAYERS['top'])
+
+        # coast
+        for obj in tmx_map.get_layer_by_name('Coast'):
+            terrain = obj.properties['terrain']
+            side = obj.properties['side']
+            AnimatedSprite((obj.x, obj.y), self.overworld_frames['coast'][terrain][side], self.all_sprites,
+                           WORLD_LAYERS['bg'])
+
+        # objects
+        for obj in tmx_map.get_layer_by_name('Objects'):
+            if obj.name == 'top':
+                Sprite((obj.x, obj.y), obj.image, self.all_sprites, WORLD_LAYERS['top'])
+                #should add in aplha .5 when collide
+            else:
+                CollidableSprite((obj.x, obj.y), obj.image, (self.all_sprites, self.collision_sprites))
+
+        # transition objects
+        for obj in tmx_map.get_layer_by_name('Transition'):
+            TransitionSprite((obj.x, obj.y), (obj.width, obj.height), (obj.properties['target'], obj.properties['pos']),
+                             self.transition_sprites)
+
+        # collision objects
+        for obj in tmx_map.get_layer_by_name('Collisions'):
+            BorderSprite((obj.x, obj.y), pygame.Surface((obj.width, obj.height)), self.collision_sprites)
+
+        
+        # entities
+        for obj in tmx_map.get_layer_by_name('Entities'):
+            if obj.name == 'Player':
+                if obj.properties['pos'] == player_start_pos:
+                    self.player = Player(
+                        pos=(obj.x, obj.y),
+                        frames=self.overworld_frames['player']['player'],
+                        groups=self.all_sprites,
+                        facing_direction=obj.properties['direction'],
+                        collision_sprites=self.collision_sprites)
+            else:
+                Character(
+                    pos=(obj.x, obj.y),
+                    frames=self.overworld_frames['characters'][obj.properties['graphic']],
+                    groups=(self.all_sprites, self.collision_sprites, self.character_sprites),
+                    facing_direction=obj.properties['direction'],
+                    character_data=TRAINER_DATA[obj.properties['character_id']],
+                    player=self.player,
+                    create_dialog=self.create_dialog,
+                    collision_sprites=self.collision_sprites,
+                    radius=obj.properties['radius'],
+                    nurse=obj.properties['character_id'] == 'Nurse',
+                    notice_sound=self.audio['notice'])
+                
+# level ------------------------------------------------------ might need to remove
+
+class Level:
+    def __init__(self, x, y, width, height, img):
+        self.position = Vector2(x, y)
+        self.worldposition = Vector2(0, 0)
+        self.w = width
+        self.h = height
+        self.rect = pygame.Rect(self.position.x, self.position.y, self.w, self.h)
+        self.img = img
+
+    def update(self):
+        self.worldposition.x = world_offset.x + self.position.x
+        self.worldposition.y = world_offset.y + self.position.y
+        self.rect = pygame.Rect(self.worldposition.x, self.worldposition.y, self.w, self.h)
+        screen.blit(self.img, (self.worldposition.x, self.worldposition.y))
+
+
+levels = []
+l = Level(0, 300, 32, 32, bg_images['edgeleft'])
+levels.append(l)
+for i in range(30):
+    l = Level(32 * i, 300, 32, 32, bg_images['ground'])
+    levels.append(l)
+
+l = Level(250, 268, 32, 32, bg_images['ground'])
+levels.append(l)
+l = Level(550, 268, 32, 32, bg_images['ground'])
+levels.append(l)
+
+# delay timer --------------------------------------------
+def timer(countdown, amount, dt):
+    countdown -= amount * dt
+    return countdown
+
 
 
 bg = pygame.transform.scale(bg_images['clouds'], (320, 240))
@@ -271,6 +426,8 @@ scroll = 0
 scroll_speed = 2
 tiles = math.ceil(screen_size[0]/bg.get_width()) + 1
 running = True
+
+# game loop ------------------------------------------------$$$$$$$$$$$$$$$$$$$$$$
 while running:
     dt = clock.get_time() / 1000
     for event in pygame.event.get():
