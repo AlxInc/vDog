@@ -5,19 +5,35 @@
     },
     "activeFile": "",
     "expandedProjectPaths": [
+        "."
     ],
+    "file.lastUsedOpenFilter": "All Files (*)",
     "fileStates": {
+        "map.tmx": {
+            "scale": 0.75,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 31648,
+                "y": 801.9999999999999
+            }
+        },
         "tileset.tsx": {
-            "dynamicWrapping": true
+            "dynamicWrapping": true,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
         }
     },
+    "last.imagePath": "C:/Users/Vicki/vDog/sprites",
+    "map.height": 20,
     "map.lastUsedFormat": "tmx",
     "map.tileHeight": 64,
     "map.tileWidth": 64,
-    "map.width": 1000,
+    "map.width": 2000,
     "openFiles": [
     ],
     "project": "VDog.tiled-project",
     "recentFiles": [
+        "map.tmx",
+        "tileset.tsx"
     ]
 }
