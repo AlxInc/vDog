@@ -35,5 +35,6 @@
     "recentFiles": [
         "map.tmx",
         "tileset.tsx"
-    ]
+    ],
+    "tileset.lastUsedFormat": "tsx"
 }
